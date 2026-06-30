@@ -1,0 +1,97 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+.history/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code local settings
+.vscode/
+!.vscode/extensions.json
+
+# =========================
+# Secrets / Environment
+# =========================
+.env
+.env.*
+!.env.example
+
+# OJO: si database.js tiene credenciales reales, NO subirlo
+backend/src/config/database.js
+
+# =========================
+# Node / Backend
+# =========================
+backend/node_modules/
+backend/.env
+backend/.env.*
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/pnpm-debug.log*
+
+# Mantener package.json y package-lock.json
+!backend/package.json
+!backend/package-lock.json
+
+# =========================
+# Flutter / Dart
+# =========================
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# Builds
+build/
+**/build/
+
+# Symbolication / Obfuscation
+app.*.symbols
+app.*.map.json
+
+# =========================
+# Android
+# =========================
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/.gradle/
+android/local.properties
+*.jks
+*.keystore
+key.properties
+
+# =========================
+# iOS
+# =========================
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# =========================
+# Misc
+# =========================
+*.class
+*.pyc
+.svn/
+.atom/
+.buildlog/
+migrate_working_dir/

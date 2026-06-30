@@ -1,0 +1,68 @@
+const express = require('express');
+const cors = require('cors');
+
+require('dotenv').config();
+
+const pool = require('./src/config/database');
+
+const catalogosRoutes = require('./src/routes/catalogos.routes');
+const controlRoutes = require('./src/routes/control.routes');
+
+const app = express();
+
+const allowedOrigins = [
+  'http://127.0.0.1:8080',
+  'http://localhost:8080',
+  'http://10.10.50.21:8080',
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+app.use(express.json());
+
+const PORT = process.env.PORT || 3000;
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+
+    await connection.query('SELECT 1');
+
+    connection.release();
+
+    res.json({
+      ok: true,
+      message: 'Backend y MySQL operativos',
+      database: process.env.DB_NAME,
+    });
+  } catch (error) {
+    console.error('Error MySQL:', error.message);
+
+    res.status(500).json({
+      ok: false,
+      message: 'Error conexión MySQL',
+      error: error.message,
+    });
+  }
+});
+
+app.use('/api/catalogos', catalogosRoutes);
+app.use('/api/control', controlRoutes);
+
+app.listen(PORT, () => {
+  console.log(`Servidor backend en puerto ${PORT}`);
+});
