@@ -122,6 +122,8 @@ const crearRegistroControl = async (req, res) => {
             tipoOndaId,
             mermaInsumosDesponcheBobinas,
             mermaProcesoMonotapas,
+            tipoMerma,
+            cantidadMerma,
             turno,
             resultadoVisual,
             observacion,
@@ -155,8 +157,43 @@ const crearRegistroControl = async (req, res) => {
         const tipoOndaIdFinal = esCorrugado ? tipoOndaId || null : null;
         const mermaInsumosFinal = esCorrugado ? mermaInsumosDesponcheBobinas || null : null;
         const mermaProcesoFinal = esCorrugado ? mermaProcesoMonotapas || null : null;
+        const tipoMermaFinal = tipoMerma || null;
+        const cantidadMermaFinal = cantidadMerma || null;
 
         await connection.beginTransaction();
+
+        const registroControlParams = [
+            usuarioId,
+            procesoId,
+            maquinaId,
+            formularioId || null,
+            area || null,
+            np || null,
+            codigoProducto || null,
+            descripcionProducto || null,
+            tipoOndaIdFinal,
+            mermaInsumosFinal,
+            mermaProcesoFinal,
+            tipoMermaFinal,
+            cantidadMermaFinal,
+            turno,
+            estadoId,
+            observacion || null,
+        ];
+
+        console.log('BODY RECIBIDO (parseado):', {
+            usuarioId,
+            procesoId,
+            maquinaId,
+            tipoOndaId,
+            mermaInsumosDesponcheBobinas,
+            mermaProcesoMonotapas,
+            tipoMerma,
+            cantidadMerma,
+            turno,
+            resultadoVisual,
+        });
+        console.log('PARAMS INSERT registros_control:', registroControlParams);
 
         const [registroResult] = await connection.query(
             `
@@ -173,30 +210,17 @@ const crearRegistroControl = async (req, res) => {
               tipo_onda_id,
               merma_insumos_desponche_bobinas,
               merma_proceso_monotapas,
+              tipo_merma,
+              cantidad_merma,
               turno,
               estado_id,
               observacion,
               fecha_registro,
               hora_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME())
         `,
-            [
-                usuarioId,
-                procesoId,
-                maquinaId,
-                formularioId || null,
-                area || null,
-                np || null,
-                codigoProducto || null,
-                descripcionProducto || null,
-                tipoOndaIdFinal,
-                mermaInsumosFinal,
-                mermaProcesoFinal,
-                turno,
-                estadoId,
-                observacion || null,
-            ]
+            registroControlParams
         );
 
         const registroId = registroResult.insertId;
@@ -251,14 +275,18 @@ const crearRegistroControl = async (req, res) => {
 
         await connection.commit();
 
-        res.status(201).json({
+        const responseBody = {
             ok: true,
             message: 'Control registrado correctamente',
             data: {
                 registroId,
                 estadoId,
             },
-        });
+        };
+
+        console.log('RESPUESTA POST /control/registros:', responseBody);
+
+        res.status(201).json(responseBody);
     } catch (error) {
         await connection.rollback();
 

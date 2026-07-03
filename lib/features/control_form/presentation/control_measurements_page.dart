@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api/control_api.dart';
 import '../../../core/local/pending_records_store.dart';
 import '../../../core/network/network_mode_service.dart';
@@ -34,6 +37,10 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
   final NetworkModeService _networkModeService = NetworkModeService();
   final TextEditingController _wasteQuantityController =
       TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+
+  Uint8List? _selectedAttachmentBytes;
+  String? _selectedAttachmentName;
 
   String? _selectedVisualControlResult;
   final Set<int> _selectedLabTestIds = {};
@@ -109,6 +116,45 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
         const SnackBar(content: Text('QR de producto no válido')),
       );
     }
+  }
+
+  Future<void> _takePhoto() async {
+    final XFile? photo = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 75,
+    );
+
+    if (photo == null) return;
+
+    final bytes = await photo.readAsBytes();
+
+    setState(() {
+      _selectedAttachmentBytes = bytes;
+      _selectedAttachmentName = photo.name;
+    });
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+      withData: true,
+    );
+
+    if (result == null || result.files.single.bytes == null) return;
+
+    setState(() {
+      _selectedAttachmentBytes = result.files.single.bytes;
+      _selectedAttachmentName = result.files.single.name;
+    });
+  }
+
+  void _removeAttachment() {
+    setState(() {
+      _selectedAttachmentBytes = null;
+      _selectedAttachmentName = null;
+    });
   }
 
   Future<void> _saveControl() async {
@@ -217,9 +263,38 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
               )
               .toList()
           : [],
+      'tipoMerma': _hasWaste ? _selectedWasteType : null,
+      'cantidadMerma':
+          _hasWaste ? double.tryParse(_wasteQuantityController.text) : null,
+      'mermaInsumosDesponcheBobinas':
+          (_hasWaste &&
+                  widget.controlContext.processId == 1 &&
+                  _selectedWasteType == 'Insumos - Desponche de bobinas')
+              ? double.tryParse(_wasteQuantityController.text)
+              : null,
+      'mermaProcesoMonotapas':
+          (_hasWaste &&
+                  widget.controlContext.processId == 1 &&
+                  _selectedWasteType == 'Proceso - Merma por monotapa')
+              ? double.tryParse(_wasteQuantityController.text)
+              : null,
     };
 
     final shouldUseOffline = await _networkModeService.shouldUseOfflineMode();
+
+    if (shouldUseOffline && _selectedAttachmentBytes != null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se puede guardar evidencia sin conexión. Revise conexión e intente nuevamente.',
+          ),
+        ),
+      );
+
+      return;
+    }
 
     if (shouldUseOffline) {
       await _pendingRecordsStore.savePendingRecord(payload);
@@ -238,8 +313,14 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
       return;
     }
 
+    debugPrint('PAYLOAD ENVIADO: ${jsonEncode(payload)}');
+
     try {
-      await _controlApi.guardarRegistro(payload);
+      await _controlApi.guardarRegistro(
+        payload,
+        archivoBytes: _selectedAttachmentBytes,
+        archivoNombre: _selectedAttachmentName,
+      );
 
       if (!mounted) return;
 
@@ -251,6 +332,20 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
 
       Navigator.popUntil(context, (route) => route.isFirst);
     } catch (error) {
+      if (_selectedAttachmentBytes != null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo guardar con evidencia. Revise conexión e intente nuevamente.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
       await _pendingRecordsStore.savePendingRecord(payload);
 
       if (!mounted) return;
@@ -891,6 +986,77 @@ class _ControlMeasurementsPageState extends State<ControlMeasurementsPage> {
                                       color: Color(0xFF8BC34A),
                                     ),
                                   ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Evidencia opcional',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Puede adjuntar una foto o archivo PDF/JPG/PNG.',
+                              style: TextStyle(color: Color(0xFFB0BEC5)),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _takePhoto,
+                              icon: const Icon(Icons.camera_alt),
+                              label: const Text('Tomar foto'),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                foregroundColor: Colors.white,
+                                side:
+                                    const BorderSide(color: Color(0xFF8BC34A)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: _pickFile,
+                              icon: const Icon(Icons.attach_file),
+                              label: const Text('Seleccionar archivo'),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                foregroundColor: Colors.white,
+                                side:
+                                    const BorderSide(color: Color(0xFF8BC34A)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                            if (_selectedAttachmentName != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'Archivo: $_selectedAttachmentName',
+                                style: const TextStyle(
+                                  color: Color(0xFFCFD8DC),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: _removeAttachment,
+                                icon: const Icon(Icons.close),
+                                label: const Text('Quitar archivo'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFFFFCC80),
                                 ),
                               ),
                             ],

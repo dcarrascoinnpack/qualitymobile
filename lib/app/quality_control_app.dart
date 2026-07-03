@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../features/welcome/welcome_page.dart';
+import '../features/empresa_selector/empresa_selector_page.dart';
 
 class QualityControlApp extends StatelessWidget {
   const QualityControlApp({super.key});
@@ -14,7 +14,7 @@ class QualityControlApp extends StatelessWidget {
         useMaterial3: false,
         primarySwatch: Colors.blueGrey,
       ),
-      home: const WelcomePage(),
+      home: const EmpresaSelectorPage(),
     );
   }
 }
